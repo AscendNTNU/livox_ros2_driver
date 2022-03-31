@@ -22,6 +22,8 @@
 // SOFTWARE.
 //
 
+#include "include/livox_ros2_driver.h"
+
 #include <chrono>
 #include <csignal>
 #include <future>
@@ -29,40 +31,32 @@
 #include <thread>
 #include <vector>
 
-#include "include/livox_ros2_driver.h"
-
-#include "rclcpp/rclcpp.hpp"
-#include "pcl_conversions/pcl_conversions.h"
-#include "sensor_msgs/msg/point_cloud2.hpp"
-#include "sensor_msgs/msg/imu.hpp"
-
-
 #include "lddc.h"
 #include "lds_hub.h"
 #include "lds_lidar.h"
 #include "lds_lvx.h"
-#include "livox_sdk.h"
-#include "livox_interfaces/msg/custom_point.h"
 #include "livox_interfaces/msg/custom_msg.h"
+#include "livox_interfaces/msg/custom_point.h"
+#include "livox_sdk.h"
+#include "pcl_conversions/pcl_conversions.h"
+#include "rclcpp/rclcpp.hpp"
+#include "sensor_msgs/msg/imu.hpp"
+#include "sensor_msgs/msg/point_cloud2.hpp"
 
-namespace
-{
-  const int32_t kSdkVersionMajorLimit = 2;
+namespace {
+const int32_t kSdkVersionMajorLimit = 2;
 
-  inline void SignalHandler(int signum)
-  {
-    rclcpp::shutdown();
-    exit(signum);
-  }
+inline void SignalHandler(int signum) {
+  rclcpp::shutdown();
+  exit(signum);
 }
+}  // namespace
 
-namespace livox_ros
-{
-LivoxDriver::LivoxDriver(const rclcpp::NodeOptions & node_options)
-: Node("livox_driver_node", node_options)
-{
+namespace livox_ros {
+LivoxDriver::LivoxDriver(const rclcpp::NodeOptions &node_options)
+    : Node("livox_driver_node", node_options) {
   RCLCPP_INFO(this->get_logger(), "Livox Ros Driver Version: %s",
-    LIVOX_ROS_DRIVER_VERSION_STRING);
+              LIVOX_ROS_DRIVER_VERSION_STRING);
 
   signal(SIGINT, SignalHandler);
 
@@ -70,9 +64,8 @@ LivoxDriver::LivoxDriver(const rclcpp::NodeOptions & node_options)
   LivoxSdkVersion _sdkversion;
   GetLivoxSdkVersion(&_sdkversion);
   if (_sdkversion.major < kSdkVersionMajorLimit) {
-    RCLCPP_INFO(this->get_logger(),
-      "The SDK version[%d.%d.%d] is too low", _sdkversion.major,
-      _sdkversion.minor, _sdkversion.patch);
+    RCLCPP_INFO(this->get_logger(), "The SDK version[%d.%d.%d] is too low",
+                _sdkversion.major, _sdkversion.minor, _sdkversion.patch);
     rclcpp::shutdown();
     return;
   }
@@ -112,8 +105,8 @@ LivoxDriver::LivoxDriver(const rclcpp::NodeOptions & node_options)
   future_ = exit_signal_.get_future();
 
   /** Lidar data distribute control and lidar data source set */
-  lddc_ptr_ =
-    std::make_unique<Lddc>(xfer_format, multi_topic, data_src, output_type, publish_freq, frame_id);
+  lddc_ptr_ = std::make_unique<Lddc>(xfer_format, multi_topic, data_src,
+                                     output_type, publish_freq, frame_id);
   lddc_ptr_->SetRosNode(this);
 
   int ret = 0;
@@ -122,7 +115,8 @@ LivoxDriver::LivoxDriver(const rclcpp::NodeOptions & node_options)
 
     std::string user_config_path;
     this->get_parameter("user_config_path", user_config_path);
-    RCLCPP_INFO(this->get_logger(), "Config file : %s", user_config_path.c_str());
+    RCLCPP_INFO(this->get_logger(), "Config file : %s",
+                user_config_path.c_str());
 
     std::string cmdline_bd_code;
     this->get_parameter("cmdline_input_bd_code", cmdline_bd_code);
@@ -144,7 +138,7 @@ LivoxDriver::LivoxDriver(const rclcpp::NodeOptions & node_options)
     std::string user_config_path;
     this->get_parameter("user_config_path", user_config_path);
     RCLCPP_INFO(this->get_logger(), "Config file : %s",
-        user_config_path.c_str());
+                user_config_path.c_str());
 
     std::string cmdline_bd_code;
     this->get_parameter("cmdline_input_bd_code", cmdline_bd_code);
@@ -168,7 +162,8 @@ LivoxDriver::LivoxDriver(const rclcpp::NodeOptions & node_options)
 
     do {
       if (!IsFilePathValid(cmdline_file_path.c_str())) {
-        RCLCPP_INFO(this->get_logger(), "File path invalid : %s !", cmdline_file_path.c_str());
+        RCLCPP_INFO(this->get_logger(), "File path invalid : %s !",
+                    cmdline_file_path.c_str());
         break;
       }
 
@@ -190,16 +185,19 @@ LivoxDriver::LivoxDriver(const rclcpp::NodeOptions & node_options)
   }
 
   poll_thread_ = std::make_shared<std::thread>(&LivoxDriver::pollThread, this);
+
+  const char broadcast_code[16] = "3JEDK1E001YT861";
+  const char ip[16] = "192.168.64.29";
+
+  AddLidar(broadcast_code, ip);
 }
 
-LivoxDriver::~LivoxDriver()
-{
+LivoxDriver::~LivoxDriver() {
   exit_signal_.set_value();
   poll_thread_->join();
 }
 
-void LivoxDriver::pollThread()
-{
+void LivoxDriver::pollThread() {
   std::future_status status;
 
   do {

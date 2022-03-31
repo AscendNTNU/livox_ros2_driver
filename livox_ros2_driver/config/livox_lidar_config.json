@@ -17,6 +17,15 @@
             "coordinate": 0,
             "imu_rate": 1,
             "extrinsic_parameter_source": 0
+        },
+        {
+            "broadcast_code": "3JEDK1E001YT861",
+            "enable_connect": true,
+            "enable_fan": true,
+            "return_mode": 0,
+            "coordinate": 0,
+            "imu_rate": 1,
+            "extrinsic_parameter_source": 0
         }
     ],
 	
